@@ -1,131 +1,96 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Hotel Inventory">
-    <title>Hotel Inventory</title>
-    <link rel="manifest" href="manifest.json">
-    <link rel="apple-touch-icon" href="icon-192.png">
-    <link rel="stylesheet" href="styles.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#007aff" />
+
+  <!-- iOS PWA meta -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Hotel Inventory" />
+
+  <title>Hotel Inventory</title>
+
+  <!-- IMPORTANT: relative manifest path -->
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="apple-touch-icon" href="./icon-192.png" />
+
+  <style>
+    body { font-family: -apple-system, system-ui, Segoe UI, Roboto, Arial, sans-serif; margin: 0; background: #f5f5f7; color: #111; }
+    .wrap { max-width: 860px; margin: 0 auto; padding: 16px; }
+    .top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    h1 { margin: 0; font-size: 22px; }
+    .btn { border: 0; border-radius: 10px; padding: 10px 12px; background: #007aff; color: white; font-weight: 600; }
+    .btn.secondary { background: #333; }
+    .row { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin: 14px 0; }
+    .card { background: white; border-radius: 12px; padding: 12px; box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+    .muted { color: #666; font-size: 12px; }
+    .count { font-size: 24px; font-weight: 700; }
+    .filters { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0; }
+    .pill { border: 1px solid #ddd; background: #fff; border-radius: 999px; padding: 8px 12px; }
+    .pill.active { background: #007aff; color: #fff; border-color: #007aff; }
+    .list { display: grid; gap: 10px; margin-top: 10px; }
+    .room { background: #fff; border-radius: 12px; padding: 12px; border-left: 5px solid #ddd; }
+    .room.available { border-left-color: #34c759; }
+    .room.booked { border-left-color: #ff3b30; }
+    .room.tentative { border-left-color: #ff9500; }
+    .room h3 { margin: 0 0 4px 0; font-size: 16px; }
+    .small { font-size: 13px; color: #444; margin-top: 2px; }
+    form { display: grid; gap: 8px; margin-top: 12px; }
+    input, select { padding: 10px; border: 1px solid #ddd; border-radius: 10px; background: #fff; }
+    .hidden { display: none; }
+  </style>
 </head>
 <body>
-    <div id="app">
-        <!-- Header -->
-        <header class="header">
-            <h1>🏨 Hotel Inventory</h1>
-            <div class="header-buttons">
-                <button id="exportBtn" class="btn-icon" title="Export to Excel">📊</button>
-                <button id="addBtn" class="btn-icon" title="Add Room">➕</button>
-            </div>
-        </header>
-
-        <!-- Summary -->
-        <div class="summary">
-            <div class="summary-item green">
-                <span id="availableCount">0</span>
-                <small>Available</small>
-            </div>
-            <div class="summary-item red">
-                <span id="bookedCount">0</span>
-                <small>Booked</small>
-            </div>
-            <div class="summary-item orange">
-                <span id="tentativeCount">0</span>
-                <small>Tentative</small>
-            </div>
-        </div>
-
-        <!-- Filters -->
-        <div class="filters">
-            <button class="filter-pill active" data-filter="all">All</button>
-            <button class="filter-pill" data-filter="Available">Available</button>
-            <button class="filter-pill" data-filter="Booked">Booked</button>
-            <button class="filter-pill" data-filter="Tentative">Tentative</button>
-        </div>
-
-        <!-- Room List -->
-        <div id="roomList" class="room-list"></div>
-
-        <!-- Empty State -->
-        <div id="emptyState" class="empty-state">
-            <div>🛏️</div>
-            <p>No rooms added yet</p>
-            <small>Tap ➕ to add your first room</small>
-        </div>
+  <div class="wrap">
+    <div class="top">
+      <h1>:hotel: Hotel Inventory</h1>
+      <div style="display:flex; gap:8px;">
+        <button id="exportBtn" class="btn secondary">Export CSV</button>
+      </div>
     </div>
 
-    <!-- Add/Edit Modal -->
-    <div id="modal" class="modal hidden">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 id="modalTitle">Add New Room</h2>
-                <button id="closeModal" class="btn-close">✕</button>
-            </div>
-            <form id="roomForm">
-                <div class="form-group">
-                    <label>Room Number *</label>
-                    <input type="text" id="roomNumber" placeholder="e.g., 101" required>
-                </div>
-                <div class="form-group">
-                    <label>Room Type</label>
-                    <select id="roomType">
-                        <option value="Standard Room">Standard Room</option>
-                        <option value="Deluxe Room">Deluxe Room</option>
-                        <option value="Triple Sharing Room">Triple Sharing Room</option>
-                        <option value="Deluxe with Balcony">Deluxe with Balcony</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Status</label>
-                    <select id="roomStatus">
-                        <option value="Available">Available</option>
-                        <option value="Booked">Booked</option>
-                        <option value="Tentative">Tentative</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Guest Name</label>
-                    <input type="text" id="guestName" placeholder="Guest name">
-                </div>
-                <div class="form-group">
-                    <label>Contact Number</label>
-                    <input type="tel" id="contactNumber" placeholder="Phone number">
-                </div>
-                <div class="form-group">
-                    <label>Check-in Date</label>
-                    <input type="date" id="checkInDate">
-                </div>
-                <div class="form-group">
-                    <label>Check-out Date</label>
-                    <input type="date" id="checkOutDate">
-                </div>
-                <input type="hidden" id="editingId">
-                <div class="form-buttons">
-                    <button type="button" id="cancelBtn" class="btn-secondary">Cancel</button>
-                    <button type="submit" class="btn-primary">Save Room</button>
-                </div>
-            </form>
-        </div>
+    <div class="row">
+      <div class="card"><div class="muted">Available</div><div id="cAvailable" class="count">0</div></div>
+      <div class="card"><div class="muted">Booked</div><div id="cBooked" class="count">0</div></div>
+      <div class="card"><div class="muted">Tentative</div><div id="cTentative" class="count">0</div></div>
     </div>
 
-    <!-- Detail Modal -->
-    <div id="detailModal" class="modal hidden">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 id="detailTitle">Room Details</h2>
-                <button id="closeDetail" class="btn-close">✕</button>
-            </div>
-            <div id="detailContent"></div>
-            <div class="form-buttons">
-                <button id="deleteRoomBtn" class="btn-danger">🗑️ Delete</button>
-                <button id="editRoomBtn" class="btn-primary">✏️ Edit</button>
-            </div>
-        </div>
+    <div class="card">
+      <div class="filters">
+        <button class="pill active" data-filter="All">All</button>
+        <button class="pill" data-filter="Available">Available</button>
+        <button class="pill" data-filter="Booked">Booked</button>
+        <button class="pill" data-filter="Tentative">Tentative</button>
+      </div>
+
+      <form id="roomForm">
+        <input id="roomNumber" placeholder="Room Number (e.g. 101)" required />
+        <select id="roomType">
+          <option>Standard Room</option>
+          <option>Deluxe Room</option>
+          <option>Triple Sharing Room</option>
+          <option>Deluxe with Balcony</option>
+        </select>
+        <select id="status">
+          <option>Available</option>
+          <option>Booked</option>
+          <option>Tentative</option>
+        </select>
+        <input id="guestName" placeholder="Guest Name" />
+        <input id="contactNumber" placeholder="Contact Number" />
+        <label class="muted">Check-in</label>
+        <input id="checkIn" type="date" />
+        <label class="muted">Check-out</label>
+        <input id="checkOut" type="date" />
+        <button class="btn" type="submit">Add Room</button>
+      </form>
     </div>
 
-    <script src="app.js"></script>
+    <div id="list" class="list"></div>
+  </div>
+
+  <script src="./app.js"></script>
 </body>
 </html>
