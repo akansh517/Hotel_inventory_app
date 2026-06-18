@@ -1,112 +1,273 @@
-const STORAGE_KEY = 'hotel_inventory_rooms_v1';
-let filter = 'All';
-
-function loadRooms() {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
-  catch { return []; }
+// ===== DATA STORAGE =====
+function getRooms() {
+    return JSON.parse(localStorage.getItem('hotelRooms') || '[]');
 }
+
 function saveRooms(rooms) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(rooms));
+    localStorage.setItem('hotelRooms', JSON.stringify(rooms));
 }
-function nights(a, b) {
-  if (!a || !b) return 0;
-  const d = (new Date(b) - new Date(a)) / (1000 * 60 * 60 * 24);
-  return Math.max(0, Math.round(d));
-}
-function esc(v) {
-  return `"${String(v ?? '').replaceAll('"', '""')}"`;
-}
-function updateCounts(rooms) {
-  document.getElementById('cAvailable').textContent = rooms.filter(r => r.status === 'Available').length;
-  document.getElementById('cBooked').textContent = rooms.filter(r => r.status === 'Booked').length;
-  document.getElementById('cTentative').textContent = rooms.filter(r => r.status === 'Tentative').length;
-}
+
+// ===== RENDER =====
 function render() {
-  const rooms = loadRooms();
-  updateCounts(rooms);
-  const list = document.getElementById('list');
-  const show = filter === 'All' ? rooms : rooms.filter(r => r.status === filter);
+    const rooms = getRooms();
+    const filter = document.querySelector('.filter-pill.active').dataset.filter;
 
-  list.innerHTML = show.map((r, idx) => `
-    <div class="room ${r.status.toLowerCase()}">
-      <h3>Room ${r.roomNumber} • ${r.status}</h3>
-      <div class="small">${r.roomType}</div>
-      <div class="small">Guest: ${r.guestName || '-'}</div>
-      <div class="small">Contact: ${r.contactNumber || '-'}</div>
-      <div class="small">${r.checkIn || '-'} → ${r.checkOut || '-'} (${nights(r.checkIn, r.checkOut)} nights)</div>
-      <div style="margin-top:8px; display:flex; gap:8px;">
-        <button class="pill" onclick="setStatus(${idx},'Available')">Available</button>
-        <button class="pill" onclick="setStatus(${idx},'Booked')">Booked</button>
-        <button class="pill" onclick="setStatus(${idx},'Tentative')">Tentative</button>
-        <button class="pill" onclick="removeRoom(${idx})">Delete</button>
-      </div>
-    </div>
-  `).join('');
+    const filtered = filter === 'all' ? rooms : rooms.filter(r => r.status === filter);
+
+    // Summary
+    document.getElementById('availableCount').textContent = rooms.filter(r => r.status === 'Available').length;
+    document.getElementById('bookedCount').textContent = rooms.filter(r => r.status === 'Booked').length;
+    document.getElementById('tentativeCount').textContent = rooms.filter(r => r.status === 'Tentative').length;
+
+    // Room List
+    const listEl = document.getElementById('roomList');
+    const emptyEl = document.getElementById('emptyState');
+
+    if (filtered.length === 0) {
+        listEl.innerHTML = '';
+        emptyEl.style.display = 'block';
+    } else {
+        emptyEl.style.display = 'none';
+        listEl.innerHTML = filtered.map(room => {
+            const statusClass = room.status.toLowerCase();
+            return `
+                <div class="room-card" data-id="${room.id}">
+                    <div class="room-card-header">
+                        <h3><span class="status-dot ${statusClass}"></span> Room ${room.roomNumber}</h3>
+                        <span class="status-badge ${statusClass}">${room.status}</span>
+                    </div>
+                    <div class="room-card-body">
+                        <div class="type">${room.roomType}</div>
+                        ${room.guestName ? `<div class="guest">👤 ${room.guestName}</div>` : ''}
+                        <div class="dates">📅 ${formatDate(room.checkInDate)} → ${formatDate(room.checkOutDate)}</div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
 }
-window.setStatus = (idx, status) => {
-  const rooms = loadRooms();
-  if (!rooms[idx]) return;
-  rooms[idx].status = status;
-  saveRooms(rooms);
-  render();
-};
-window.removeRoom = (idx) => {
-  const rooms = loadRooms();
-  rooms.splice(idx, 1);
-  saveRooms(rooms);
-  render();
-};
 
-document.getElementById('roomForm').addEventListener('submit', (e) => {
-  e.preventDefault();
-  const rooms = loadRooms();
-  const room = {
-    roomNumber: document.getElementById('roomNumber').value.trim(),
-    roomType: document.getElementById('roomType').value,
-    status: document.getElementById('status').value,
-    guestName: document.getElementById('guestName').value.trim(),
-    contactNumber: document.getElementById('contactNumber').value.trim(),
-    checkIn: document.getElementById('checkIn').value,
-    checkOut: document.getElementById('checkOut').value
-  };
-  if (!room.roomNumber) return;
-  rooms.push(room);
-  saveRooms(rooms);
-  e.target.reset();
-  render();
-});
+function formatDate(dateStr) {
+    if (!dateStr) return '—';
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+}
 
-document.querySelectorAll('.pill[data-filter]').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.pill[data-filter]').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    filter = btn.dataset.filter;
+// ===== ADD / EDIT =====
+function openAddModal() {
+    document.getElementById('modalTitle').textContent = 'Add New Room';
+    document.getElementById('roomForm').reset();
+    document.getElementById('editingId').value = '';
+    document.getElementById('checkInDate').value = new Date().toISOString().split('T')[0];
+    document.getElementById('checkOutDate').value = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+    document.getElementById('modal').classList.remove('hidden');
+}
+
+function openEditModal(room) {
+    document.getElementById('modalTitle').textContent = `Edit Room ${room.roomNumber}`;
+    document.getElementById('roomNumber').value = room.roomNumber;
+    document.getElementById('roomType').value = room.roomType;
+    document.getElementById('roomStatus').value = room.status;
+    document.getElementById('guestName').value = room.guestName || '';
+    document.getElementById('contactNumber').value = room.contactNumber || '';
+    document.getElementById('checkInDate').value = room.checkInDate || '';
+    document.getElementById('checkOutDate').value = room.checkOutDate || '';
+    document.getElementById('editingId').value = room.id;
+    document.getElementById('modal').classList.remove('hidden');
+}
+
+function closeModal() {
+    document.getElementById('modal').classList.add('hidden');
+}
+
+function saveRoom(e) {
+    e.preventDefault();
+    const rooms = getRooms();
+    const editingId = document.getElementById('editingId').value;
+
+    const roomData = {
+        id: editingId || Date.now().toString(),
+        roomNumber: document.getElementById('roomNumber').value.trim(),
+        roomType: document.getElementById('roomType').value,
+        status: document.getElementById('roomStatus').value,
+        guestName: document.getElementById('guestName').value.trim(),
+        contactNumber: document.getElementById('contactNumber').value.trim(),
+        checkInDate: document.getElementById('checkInDate').value,
+        checkOutDate: document.getElementById('checkOutDate').value
+    };
+
+    if (editingId) {
+        const index = rooms.findIndex(r => r.id === editingId);
+        if (index !== -1) rooms[index] = roomData;
+    } else {
+        rooms.push(roomData);
+    }
+
+    saveRooms(rooms);
+    closeModal();
     render();
-  });
+}
+
+// ===== DETAIL VIEW =====
+let currentDetailRoom = null;
+
+function openDetail(roomId) {
+    const rooms = getRooms();
+    const room = rooms.find(r => r.id === roomId);
+    if (!room) return;
+    currentDetailRoom = room;
+
+    document.getElementById('detailTitle').textContent = `Room ${room.roomNumber}`;
+
+    const nights = room.checkInDate && room.checkOutDate
+        ? Math.ceil((new Date(room.checkOutDate) - new Date(room.checkInDate)) / 86400000)
+        : 0;
+
+    document.getElementById('detailContent').innerHTML = `
+        <div class="detail-section">
+            <h4>Room Information</h4>
+            <div class="detail-row"><span class="label">Room Number</span><span class="value">${room.roomNumber}</span></div>
+            <div class="detail-row"><span class="label">Type</span><span class="value">${room.roomType}</span></div>
+            <div class="detail-row"><span class="label">Status</span><span class="value"><span class="status-badge ${room.status.toLowerCase()}">${room.status}</span></span></div>
+        </div>
+        <div class="detail-section">
+            <h4>Guest Information</h4>
+            <div class="detail-row"><span class="label">Name</span><span class="value">${room.guestName || '— Not assigned —'}</span></div>
+            <div class="detail-row"><span class="label">Contact</span><span class="value">${room.contactNumber ? `<a href="tel:${room.contactNumber}">${room.contactNumber}</a>` : '— No contact —'}</span></div>
+        </div>
+        <div class="detail-section">
+            <h4>Booking Dates</h4>
+            <div class="detail-row"><span class="label">Check-in</span><span class="value">${formatDate(room.checkInDate)}</span></div>
+            <div class="detail-row"><span class="label">Check-out</span><span class="value">${formatDate(room.checkOutDate)}</span></div>
+            <div class="detail-row"><span class="label">Duration</span><span class="value">${nights} night${nights !== 1 ? 's' : ''}</span></div>
+        </div>
+        <div class="detail-section">
+            <h4>Quick Status Change</h4>
+            <div class="status-buttons">
+                <button class="status-btn ${room.status === 'Available' ? 'active' : ''}" onclick="changeStatus('${room.id}', 'Available')">✅ Available</button>
+                <button class="status-btn ${room.status === 'Booked' ? 'active' : ''}" onclick="changeStatus('${room.id}', 'Booked')">🔴 Booked</button>
+                <button class="status-btn ${room.status === 'Tentative' ? 'active' : ''}" onclick="changeStatus('${room.id}', 'Tentative')">🟡 Tentative</button>
+            </div>
+        </div>
+    `;
+
+    document.getElementById('detailModal').classList.remove('hidden');
+}
+
+function changeStatus(roomId, newStatus) {
+    const rooms = getRooms();
+    const room = rooms.find(r => r.id === roomId);
+    if (room) {
+        room.status = newStatus;
+        saveRooms(rooms);
+        render();
+        openDetail(roomId); // Refresh detail view
+    }
+}
+
+function closeDetail() {
+    document.getElementById('detailModal').classList.add('hidden');
+    currentDetailRoom = null;
+}
+
+function deleteRoom() {
+    if (!currentDetailRoom) return;
+    if (confirm(`Delete Room ${currentDetailRoom.roomNumber}?`)) {
+        let rooms = getRooms();
+        rooms = rooms.filter(r => r.id !== currentDetailRoom.id);
+        saveRooms(rooms);
+        closeDetail();
+        render();
+    }
+}
+
+function editFromDetail() {
+    if (!currentDetailRoom) return;
+    closeDetail();
+    openEditModal(currentDetailRoom);
+}
+
+// ===== EXPORT TO EXCEL (CSV) =====
+function exportToExcel() {
+    const rooms = getRooms();
+    if (rooms.length === 0) {
+        alert('No rooms to export!');
+        return;
+    }
+
+    const filter = document.querySelector('.filter-pill.active').dataset.filter;
+    const filtered = filter === 'all' ? rooms : rooms.filter(r => r.status === filter);
+
+    let csv = 'Room Number,Room Type,Status,Guest Name,Contact Number,Check-in Date,Check-out Date,Nights\n';
+
+    filtered.forEach(room => {
+        const nights = room.checkInDate && room.checkOutDate
+            ? Math.ceil((new Date(room.checkOutDate) - new Date(room.checkInDate)) / 86400000)
+            : 0;
+
+        const row = [
+            room.roomNumber,
+            room.roomType,
+            room.status,
+            room.guestName || '',
+            room.contactNumber || '',
+            room.checkInDate || '',
+            room.checkOutDate || '',
+            nights
+        ].map(field => {
+            const str = String(field);
+            if (str.includes(',') || str.includes('"')) {
+                return `"${str.replace(/"/g, '""')}"`;
+            }
+            return str;
+        });
+
+        csv += row.join(',') + '\n';
+    });
+
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `HotelInventory_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+// ===== EVENT LISTENERS =====
+document.getElementById('addBtn').addEventListener('click', openAddModal);
+document.getElementById('closeModal').addEventListener('click', closeModal);
+document.getElementById('cancelBtn').addEventListener('click', closeModal);
+document.getElementById('roomForm').addEventListener('submit', saveRoom);
+document.getElementById('exportBtn').addEventListener('click', exportToExcel);
+document.getElementById('closeDetail').addEventListener('click', closeDetail);
+document.getElementById('deleteRoomBtn').addEventListener('click', deleteRoom);
+document.getElementById('editRoomBtn').addEventListener('click', editFromDetail);
+
+// Filters
+document.querySelectorAll('.filter-pill').forEach(pill => {
+    pill.addEventListener('click', () => {
+        document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+        pill.classList.add('active');
+        render();
+    });
 });
 
-document.getElementById('exportBtn').addEventListener('click', () => {
-  const rooms = loadRooms();
-  const rows = [['Room Number','Room Type','Status','Guest Name','Contact Number','Check-in','Check-out','Nights']];
-  rooms.forEach(r => rows.push([r.roomNumber,r.roomType,r.status,r.guestName,r.contactNumber,r.checkIn,r.checkOut,nights(r.checkIn,r.checkOut)]));
-  const csv = rows.map(row => row.map(esc).join(',')).join('\n');
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `hotel_inventory_${new Date().toISOString().slice(0,10)}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
+// Room card clicks
+document.getElementById('roomList').addEventListener('click', (e) => {
+    const card = e.target.closest('.room-card');
+    if (card) openDetail(card.dataset.id);
 });
 
-// Register SW for GitHub Pages project path
+// Initial render
+render();
+
+// Register Service Worker for offline support
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker
-      .register('/Hotel_inventory_app/sw.js', { scope: '/Hotel_inventory_app/' })
-      .then(() => console.log('Service Worker registered'))
-      .catch((err) => console.error('Service Worker registration failed:', err));
+      .register('./sw.js', { scope: './' })
+      .then(reg => console.log('SW registered:', reg.scope))
+      .catch(err => console.error('SW registration failed:', err));
   });
 }
-
-render();
