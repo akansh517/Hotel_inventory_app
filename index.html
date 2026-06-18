@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Hotel Inventory">
+    <title>Hotel Inventory</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Header -->
+        <header class="header">
+            <h1>🏨 Hotel Inventory</h1>
+            <div class="header-buttons">
+                <button id="exportBtn" class="btn-icon" title="Export to Excel">📊</button>
+                <button id="addBtn" class="btn-icon" title="Add Room">➕</button>
+            </div>
+        </header>
+
+        <!-- Summary -->
+        <div class="summary">
+            <div class="summary-item green">
+                <span id="availableCount">0</span>
+                <small>Available</small>
+            </div>
+            <div class="summary-item red">
+                <span id="bookedCount">0</span>
+                <small>Booked</small>
+            </div>
+            <div class="summary-item orange">
+                <span id="tentativeCount">0</span>
+                <small>Tentative</small>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="filters">
+            <button class="filter-pill active" data-filter="all">All</button>
+            <button class="filter-pill" data-filter="Available">Available</button>
+            <button class="filter-pill" data-filter="Booked">Booked</button>
+            <button class="filter-pill" data-filter="Tentative">Tentative</button>
+        </div>
+
+        <!-- Room List -->
+        <div id="roomList" class="room-list"></div>
+
+        <!-- Empty State -->
+        <div id="emptyState" class="empty-state">
+            <div>🛏️</div>
+            <p>No rooms added yet</p>
+            <small>Tap ➕ to add your first room</small>
+        </div>
+    </div>
+
+    <!-- Add/Edit Modal -->
+    <div id="modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">Add New Room</h2>
+                <button id="closeModal" class="btn-close">✕</button>
+            </div>
+            <form id="roomForm">
+                <div class="form-group">
+                    <label>Room Number *</label>
+                    <input type="text" id="roomNumber" placeholder="e.g., 101" required>
+                </div>
+                <div class="form-group">
+                    <label>Room Type</label>
+                    <select id="roomType">
+                        <option value="Standard Room">Standard Room</option>
+                        <option value="Deluxe Room">Deluxe Room</option>
+                        <option value="Triple Sharing Room">Triple Sharing Room</option>
+                        <option value="Deluxe with Balcony">Deluxe with Balcony</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Status</label>
+                    <select id="roomStatus">
+                        <option value="Available">Available</option>
+                        <option value="Booked">Booked</option>
+                        <option value="Tentative">Tentative</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Guest Name</label>
+                    <input type="text" id="guestName" placeholder="Guest name">
+                </div>
+                <div class="form-group">
+                    <label>Contact Number</label>
+                    <input type="tel" id="contactNumber" placeholder="Phone number">
+                </div>
+                <div class="form-group">
+                    <label>Check-in Date</label>
+                    <input type="date" id="checkInDate">
+                </div>
+                <div class="form-group">
+                    <label>Check-out Date</label>
+                    <input type="date" id="checkOutDate">
+                </div>
+                <input type="hidden" id="editingId">
+                <div class="form-buttons">
+                    <button type="button" id="cancelBtn" class="btn-secondary">Cancel</button>
+                    <button type="submit" class="btn-primary">Save Room</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Detail Modal -->
+    <div id="detailModal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="detailTitle">Room Details</h2>
+                <button id="closeDetail" class="btn-close">✕</button>
+            </div>
+            <div id="detailContent"></div>
+            <div class="form-buttons">
+                <button id="deleteRoomBtn" class="btn-danger">🗑️ Delete</button>
+                <button id="editRoomBtn" class="btn-primary">✏️ Edit</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
